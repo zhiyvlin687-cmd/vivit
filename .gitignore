@@ -1,0 +1,7 @@
+UCF-101/
+ucfTrainTestlist/
+*.pth
+*.pt
+__pycache__/
+*.pyc
+*.png
