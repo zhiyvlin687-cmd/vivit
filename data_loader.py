@@ -19,7 +19,7 @@ class UCF101Dataset(Dataset):
             root=root,
             annotation_path=annotation_path,
             frames_per_clip=self.num_frames * 2 if is_train else self.num_frames,
-            step_between_clips=1 if is_train else 4,
+            step_between_clips=self.num_frames//2 if is_train else 4,
             train=is_train,
             fold=fold,
             output_format="TCHW",
