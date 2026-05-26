@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import trunc_normal_
-
+from torch.utils.checkpoint import checkpoint
 
 class DropPath(nn.Module):
     def __init__(self, droppath_prob: float = 0.0):
@@ -81,8 +81,9 @@ class Block(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, config, num_hidden_layers, droppath_prob, num_attention_head):
+    def __init__(self, config, num_hidden_layers, droppath_prob, num_attention_head,use_checkpoint = False):
         super().__init__()
+        self.use_checkpoint = use_checkpoint
         self.blocks = nn.ModuleList([
             Block(config, droppath_prob[i], num_attention_head)
             for i in range(num_hidden_layers)
@@ -90,7 +91,10 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         for block in self.blocks:
-            x = block(x)
+            if self.use_checkpoint:
+                x = checkpoint(block,x,use_reentrant = False)
+            else:
+                x = block(x)
         return x
 
 
@@ -169,8 +173,8 @@ class ViViT_Factorised_Encoder(nn.Module):
         self.spatial_dpr  = [x.item() for x in torch.linspace(0, config["drop_path_rate"], self.spatial_num_layers)]
         self.temporal_dpr = [x.item() for x in torch.linspace(0, config["drop_path_rate"], self.temporal_num_layers)]
 
-        self.spatial_encoder  = Encoder(config, self.spatial_num_layers,  self.spatial_dpr,  self.spatial_num_heads)
-        self.temporal_encoder = Encoder(config, self.temporal_num_layers, self.temporal_dpr, self.temporal_num_heads)
+        self.spatial_encoder  = Encoder(config, self.spatial_num_layers,  self.spatial_dpr,  self.spatial_num_heads,use_checkpoint = True)
+        self.temporal_encoder = Encoder(config, self.temporal_num_layers, self.temporal_dpr, self.temporal_num_heads,use_checkpoint = False)
         self.head             = nn.Linear(self.hidden_size, self.num_classes)
         self.spatial_norm     = nn.LayerNorm(self.hidden_size, eps=1e-6)
         self.temporal_norm    = nn.LayerNorm(self.hidden_size, eps=1e-6)
