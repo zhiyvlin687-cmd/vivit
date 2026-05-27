@@ -36,6 +36,7 @@ class UCF101Dataset(Dataset):
         else:
             start = (T - self.num_frames) // 2
         video = video[start : start + self.num_frames]
+        video = TF.resize(video,[256,256],antialias = True)
         return video, label
 
 
